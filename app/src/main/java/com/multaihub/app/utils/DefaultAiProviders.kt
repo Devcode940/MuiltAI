@@ -1,0 +1,48 @@
+package com.multaihub.app.utils
+
+import com.multaihub.app.data.model.AiProvider
+
+object DefaultAiProviders {
+
+    val list = listOf(
+        // Chat
+        AiProvider("chatgpt", "ChatGPT", "https://chatgpt.com", category = "Chat", sortOrder = 1),
+        AiProvider("claude", "Claude", "https://claude.ai", category = "Chat", sortOrder = 2),
+        AiProvider("gemini", "Gemini", "https://gemini.google.com", category = "Chat", sortOrder = 3),
+        AiProvider("grok", "Grok", "https://grok.x.ai", category = "Chat", sortOrder = 4),
+        AiProvider("deepseek", "DeepSeek", "https://chat.deepseek.com", category = "Chat", sortOrder = 5),
+        AiProvider("qwen", "Qwen", "https://chat.qwen.ai", category = "Chat", sortOrder = 6),
+        AiProvider("mistral", "Mistral", "https://chat.mistral.ai", category = "Chat", sortOrder = 7),
+        AiProvider("pi", "Pi", "https://pi.ai", category = "Chat", sortOrder = 8),
+        AiProvider("poe", "Poe", "https://poe.com", category = "Chat", sortOrder = 9),
+        AiProvider("characterai", "Character.AI", "https://character.ai", category = "Chat", sortOrder = 10),
+
+        // Search / Research
+        AiProvider("perplexity", "Perplexity", "https://www.perplexity.ai", category = "Search", sortOrder = 11),
+        AiProvider("you", "You.com", "https://you.com", category = "Search", sortOrder = 12),
+        AiProvider("phind", "Phind", "https://www.phind.com", category = "Search", sortOrder = 13),
+        AiProvider("copilot", "Microsoft Copilot", "https://copilot.microsoft.com", category = "Search", sortOrder = 14),
+
+        // Coding
+        AiProvider("blackbox", "Blackbox AI", "https://www.blackbox.ai", category = "Coding", sortOrder = 15),
+        AiProvider("cursor", "Cursor", "https://cursor.com", category = "Coding", sortOrder = 16),
+        AiProvider("replit", "Replit AI", "https://replit.com", category = "Coding", sortOrder = 17),
+
+        // Free / Others
+        AiProvider("huggingchat", "HuggingChat", "https://huggingface.co/chat", category = "Free", sortOrder = 18),
+        AiProvider("openrouter", "OpenRouter", "https://openrouter.ai/chat", category = "Free", sortOrder = 19),
+        AiProvider("lmarena", "LMSYS Arena", "https://chat.lmsys.org", category = "Free", sortOrder = 20),
+        AiProvider("duckduckgo", "DuckDuckGo AI", "https://duckduckgo.com/aichat", category = "Free", sortOrder = 21),
+        AiProvider("kimi", "Kimi", "https://kimi.moonshot.cn", category = "Chat", sortOrder = 22),
+        AiProvider("metaai", "Meta AI", "https://www.meta.ai", category = "Chat", sortOrder = 23),
+        AiProvider("groq", "Groq", "https://console.groq.com/playground", category = "Free", sortOrder = 24),
+        AiProvider("together", "Together AI", "https://api.together.xyz/playground", category = "Free", sortOrder = 25),
+        AiProvider("cohere", "Cohere Coral", "https://coral.cohere.com", category = "Chat", sortOrder = 26),
+        AiProvider("notebooklm", "NotebookLM", "https://notebooklm.google.com", category = "Writing", sortOrder = 27),
+        AiProvider("gamma", "Gamma", "https://gamma.app", category = "Writing", sortOrder = 28),
+        AiProvider("leonardo", "Leonardo AI", "https://leonardo.ai", category = "Image", sortOrder = 29),
+        AiProvider("ideogram", "Ideogram", "https://ideogram.ai", category = "Image", sortOrder = 30),
+        AiProvider("flux", "Flux AI", "https://flux.ai", category = "Image", sortOrder = 31),
+        AiProvider("chatpdf", "ChatPDF", "https://www.chatpdf.com", category = "Writing", sortOrder = 32),
+    )
+}
