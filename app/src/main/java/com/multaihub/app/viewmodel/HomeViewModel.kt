@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.multaihub.app.data.model.AiProvider
 import com.multaihub.app.data.repository.AiRepository
+import com.multaihub.app.utils.UrlValidator
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -15,6 +16,12 @@ class HomeViewModel(private val repository: AiRepository) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
 
     val providers: StateFlow<List<AiProvider>> = combine(
         repository.getAllVisibleProviders(),
@@ -55,15 +62,37 @@ class HomeViewModel(private val repository: AiRepository) : ViewModel() {
 
     fun addCustomAi(name: String, url: String, category: String = "Custom") {
         viewModelScope.launch {
-            val provider = AiProvider(
-                id = "custom_${System.currentTimeMillis()}",
-                name = name,
-                url = url,
-                category = category,
-                isCustom = true,
-                sortOrder = 999
-            )
-            repository.addCustomProvider(provider)
+            try {
+                _isLoading.value = true
+                _error.value = null
+                val validatedUrl = UrlValidator.validateAndEnforceHttps(url, enforceHttps = true)
+                if (validatedUrl == null) {
+                    _error.value = "Please enter a valid URL"
+                    _isLoading.value = false
+                    return@launch
+                }
+                val existing = repository.getAllProviders().firstOrNull()?.find {
+                    it.url.equals(validatedUrl, ignoreCase = true)
+                }
+                if (existing != null) {
+                    _error.value = "This AI provider already exists"
+                    _isLoading.value = false
+                    return@launch
+                }
+                val provider = AiProvider(
+                    id = "custom_${System.currentTimeMillis()}",
+                    name = name.trim(),
+                    url = validatedUrl,
+                    category = category,
+                    isCustom = true,
+                    sortOrder = 999
+                )
+                repository.addCustomProvider(provider)
+                _isLoading.value = false
+            } catch (e: Exception) {
+                _error.value = "Failed to add AI: ${e.message}"
+                _isLoading.value = false
+            }
         }
     }
 
@@ -73,6 +102,10 @@ class HomeViewModel(private val repository: AiRepository) : ViewModel() {
                 repository.deleteProvider(provider)
             }
         }
+    }
+
+    fun clearError() {
+        _error.value = null
     }
 
     class Factory(private val repository: AiRepository) : ViewModelProvider.Factory {
