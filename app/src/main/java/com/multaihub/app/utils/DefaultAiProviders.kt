@@ -1,11 +1,7 @@
 package com.multaihub.app.utils
-
 import com.multaihub.app.data.model.AiProvider
-
 object DefaultAiProviders {
-
     val list = listOf(
-        // Chat
         AiProvider("chatgpt", "ChatGPT", "https://chatgpt.com", category = "Chat", sortOrder = 1),
         AiProvider("claude", "Claude", "https://claude.ai", category = "Chat", sortOrder = 2),
         AiProvider("gemini", "Gemini", "https://gemini.google.com", category = "Chat", sortOrder = 3),
@@ -16,19 +12,13 @@ object DefaultAiProviders {
         AiProvider("pi", "Pi", "https://pi.ai", category = "Chat", sortOrder = 8),
         AiProvider("poe", "Poe", "https://poe.com", category = "Chat", sortOrder = 9),
         AiProvider("characterai", "Character.AI", "https://character.ai", category = "Chat", sortOrder = 10),
-
-        // Search / Research
         AiProvider("perplexity", "Perplexity", "https://www.perplexity.ai", category = "Search", sortOrder = 11),
         AiProvider("you", "You.com", "https://you.com", category = "Search", sortOrder = 12),
         AiProvider("phind", "Phind", "https://www.phind.com", category = "Search", sortOrder = 13),
         AiProvider("copilot", "Microsoft Copilot", "https://copilot.microsoft.com", category = "Search", sortOrder = 14),
-
-        // Coding
         AiProvider("blackbox", "Blackbox AI", "https://www.blackbox.ai", category = "Coding", sortOrder = 15),
         AiProvider("cursor", "Cursor", "https://cursor.com", category = "Coding", sortOrder = 16),
         AiProvider("replit", "Replit AI", "https://replit.com", category = "Coding", sortOrder = 17),
-
-        // Free / Others
         AiProvider("huggingchat", "HuggingChat", "https://huggingface.co/chat", category = "Free", sortOrder = 18),
         AiProvider("openrouter", "OpenRouter", "https://openrouter.ai/chat", category = "Free", sortOrder = 19),
         AiProvider("lmarena", "LMSYS Arena", "https://chat.lmsys.org", category = "Free", sortOrder = 20),
