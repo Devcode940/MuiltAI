@@ -1,4 +1,65 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">MultiAI Hub</string>
+    
+    <!-- Home Screen -->
+    <string name="home">Home</string>
+    <string name="welcome">Welcome to MultiAI Hub</string>
+    <string name="select_provider">Select an AI provider to start chatting</string>
+    <string name="search_providers">Search providers...</string>
+    
+    <!-- Settings Screen -->
+    <string name="settings">Settings</string>
+    
+    <!-- Notes Screen -->
+    <string name="notes">Notes</string>
+    <string name="no_notes">No notes yet</string>
+    <string name="add_note_hint">Tap the + button to add your first note</string>
+    
+    <!-- Comparison Screen -->
+    <string name="compare_providers">Compare Providers</string>
+    <string name="compare_description">Select providers to compare their features, pricing, and capabilities.</string>
+    
+    <!-- WebView -->
+    <string name="webview_error">Error loading page</string>
+    <string name="loading">Loading...</string>
+    
+    <!-- General -->
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete">Delete</string>
+    <string name="edit">Edit</string>
+    <string name="add">Add</string>
+    <string name="back">Back</string>
+    
+    <!-- Dialogs -->
+    <string name="delete_confirmation">Are you sure you want to delete this?</string>
+    <string name="cannot_undo">This action cannot be undone.</string>
+    
+    <!-- Errors -->
+    <string name="error">Error</string>
+    <string name="no_internet">No internet connection</string>
+    <string name="invalid_url">Invalid URL</string>
+    
+    <!-- Categories -->
+    <string name="category_all">All</string>
+    <string name="category_chat">Chat</string>
+    <string name="category_image">Image</string>
+    <string name="category_code">Code</string>
+    <string name="category_search">Search</string>
+    
+    <!-- Features -->
+    <string name="feature_free">Free Tier</string>
+    <string name="feature_paid">Paid Plans</string>
+    <string name="feature_api">API Access</string>
+    <string name="feature_mobile">Mobile App</string>
+    <string name="feature_chat">Real-time Chat</string>
+    <string name="feature_images">Image Generation</string>
+    <string name="feature_code">Code Completion</string>
+    <string name="feature_custom">Custom Models</string>
+    
+    <!-- About -->
+    <string name="about">About</string>
+    <string name="version">Version</string>
+    <string name="app_description">MultiAI Hub - Access multiple AI providers from a single app</string>
 </resources>
