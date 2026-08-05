@@ -9,7 +9,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Compare
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Note
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,29 +31,47 @@ import com.multaihub.app.viewmodel.HomeViewModel
 fun HomeScreen(
     viewModel: HomeViewModel,
     onAiClick: (AiProvider) -> Unit,
-    onOpenComparison: () -> Unit = {}
+    onOpenComparison: () -> Unit = {},
+    onOpenNotes: () -> Unit = {},
+    onOpenSettings: () -> Unit = {}
 ) {
     val providers by viewModel.providers.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val recent by viewModel.recentProviders.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val error by viewModel.error.collectAsState()
 
     var showAddDialog by remember { mutableStateOf(false) }
     var newName by remember { mutableStateOf("") }
     var newUrl by remember { mutableStateOf("") }
+    var showMenu by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        "MultiAI Hub",
-                        fontWeight = FontWeight.Bold
-                    )
-                },
+                title = { Text("MultiAI Hub", fontWeight = FontWeight.Bold) },
                 actions = {
                     IconButton(onClick = onOpenComparison) {
-                        Text("⇄", style = MaterialTheme.typography.titleLarge)
+                        Icon(Icons.Default.Compare, contentDescription = "Compare")
+                    }
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "More")
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Notes") },
+                            onClick = { showMenu = false; onOpenNotes() },
+                            leadingIcon = { Icon(Icons.Default.Note, contentDescription = null) }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Settings") },
+                            onClick = { showMenu = false; onOpenSettings() },
+                            leadingIcon = { Icon(Icons.Default.Settings, contentDescription = null) }
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -62,7 +84,7 @@ fun HomeScreen(
                 onClick = { showAddDialog = true },
                 containerColor = MaterialTheme.colorScheme.primary
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Custom AI")
+                Icon(Icons.Default.Add, contentDescription = "Add AI")
             }
         }
     ) { padding ->
@@ -71,7 +93,25 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Search
+            error?.let { e ->
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = e, color = MaterialTheme.colorScheme.error)
+                }
+            }
+
+            if (isLoading && providers.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+                return@Column
+            }
+
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = viewModel::updateSearch,
@@ -84,7 +124,6 @@ fun HomeScreen(
                 shape = RoundedCornerShape(16.dp)
             )
 
-            // Categories
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
             ) {
@@ -97,7 +136,6 @@ fun HomeScreen(
                 }
             }
 
-            // Recent (if any)
             if (recent.isNotEmpty() && selectedCategory == "All" && searchQuery.isBlank()) {
                 Text(
                     "Recent",
@@ -122,8 +160,7 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            // AI Grid
-            if (providers.isEmpty()) {
+            if (providers.isEmpty() && !isLoading) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -153,16 +190,15 @@ fun HomeScreen(
         }
     }
 
-    // Add Custom AI Dialog
     if (showAddDialog) {
         AlertDialog(
-            onDismissRequest = { showAddDialog = false },
+            onDismissRequest = { showAddDialog = false; viewModel.clearError() },
             title = { Text("Add Custom AI") },
             text = {
                 Column {
                     OutlinedTextField(
                         value = newName,
-                        onValueChange = { newName = it },
+                        onValueChange = { newName = it; viewModel.clearError() },
                         label = { Text("Name") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
@@ -170,19 +206,22 @@ fun HomeScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = newUrl,
-                        onValueChange = { newUrl = it },
+                        onValueChange = { newUrl = it; viewModel.clearError() },
                         label = { Text("URL (https://...)") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
+                    error?.let { e ->
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(text = e, color = MaterialTheme.colorScheme.error)
+                    }
                 }
             },
             confirmButton = {
                 TextButton(
                     onClick = {
                         if (newName.isNotBlank() && newUrl.isNotBlank()) {
-                            val url = if (newUrl.startsWith("http")) newUrl else "https://$newUrl"
-                            viewModel.addCustomAi(newName.trim(), url)
+                            viewModel.addCustomAi(newName.trim(), newUrl)
                             newName = ""
                             newUrl = ""
                             showAddDialog = false
@@ -193,7 +232,7 @@ fun HomeScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showAddDialog = false }) {
+                TextButton(onClick = { showAddDialog = false; viewModel.clearError() }) {
                     Text("Cancel")
                 }
             }
