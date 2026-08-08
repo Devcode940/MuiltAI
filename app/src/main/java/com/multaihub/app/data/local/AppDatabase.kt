@@ -2,6 +2,7 @@ package com.multaihub.app.data.local
 
 import android.content.ContentValues
 import android.content.Context
+import android.database.sqlite.SQLiteDatabase
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -82,7 +83,7 @@ abstract class AppDatabase : RoomDatabase() {
             DefaultAiProviders.list.forEach { provider ->
                 db.insert(
                     "ai_providers",
-                    SupportSQLiteDatabase.CONFLICT_IGNORE,
+                    SQLiteDatabase.CONFLICT_IGNORE,
                     provider.toContentValues()
                 )
             }
