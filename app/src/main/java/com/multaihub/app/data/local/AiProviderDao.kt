@@ -25,6 +25,10 @@ interface AiProviderDao {
     @Query("SELECT * FROM ai_providers WHERE lower(url) = lower(:url) LIMIT 1")
     suspend fun getByUrl(url: String): AiProvider?
 
+    /** Searches provider metadata in SQLite instead of filtering a full catalog in Compose. */
+    @Query("SELECT * FROM ai_providers WHERE isHidden = 0 AND (name LIKE '%' || :query || '%' OR category LIKE '%' || :query || '%') ORDER BY sortOrder ASC, name ASC")
+    fun search(query: String): Flow<List<AiProvider>>
+
     @Query("SELECT * FROM ai_providers WHERE category = :category AND isHidden = 0 ORDER BY sortOrder ASC")
     fun getByCategory(category: String): Flow<List<AiProvider>>
 
