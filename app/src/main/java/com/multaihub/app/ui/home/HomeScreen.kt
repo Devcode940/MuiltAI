@@ -26,6 +26,7 @@ import com.multaihub.app.ui.components.AiCard
 import com.multaihub.app.ui.components.CategoryChip
 import com.multaihub.app.viewmodel.HomeViewModel
 
+/** Production provider catalog with database-backed search, categories, favorites and recent items. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -41,7 +42,6 @@ fun HomeScreen(
     val recent by viewModel.recentProviders.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
-
     var showAddDialog by remember { mutableStateOf(false) }
     var newName by remember { mutableStateOf("") }
     var newUrl by remember { mutableStateOf("") }
@@ -52,81 +52,38 @@ fun HomeScreen(
             TopAppBar(
                 title = { Text("MultiAI Hub", fontWeight = FontWeight.Bold) },
                 actions = {
-                    IconButton(onClick = onOpenComparison) {
-                        Icon(Icons.Default.Compare, contentDescription = "Compare")
-                    }
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "More")
-                    }
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Notes") },
-                            onClick = { showMenu = false; onOpenNotes() },
-                            leadingIcon = { Icon(Icons.Default.Note, contentDescription = null) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Settings") },
-                            onClick = { showMenu = false; onOpenSettings() },
-                            leadingIcon = { Icon(Icons.Default.Settings, contentDescription = null) }
-                        )
+                    IconButton(onClick = onOpenComparison) { Icon(Icons.Default.Compare, "Compare") }
+                    IconButton(onClick = { showMenu = true }) { Icon(Icons.Default.MoreVert, "More") }
+                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                        DropdownMenuItem(text = { Text("Notes") }, onClick = { showMenu = false; onOpenNotes() }, leadingIcon = { Icon(Icons.Default.Note, null) })
+                        DropdownMenuItem(text = { Text("Settings") }, onClick = { showMenu = false; onOpenSettings() }, leadingIcon = { Icon(Icons.Default.Settings, null) })
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showAddDialog = true },
-                containerColor = MaterialTheme.colorScheme.primary
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add AI")
-            }
+            FloatingActionButton(onClick = { showAddDialog = true }) { Icon(Icons.Default.Add, "Add AI") }
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            error?.let { e ->
-                Box(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = e, color = MaterialTheme.colorScheme.error)
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            error?.let { message ->
+                Surface(color = MaterialTheme.colorScheme.errorContainer, modifier = Modifier.fillMaxWidth()) {
+                    Text(message, color = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.padding(12.dp))
                 }
-            }
-
-            if (isLoading && providers.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-                return@Column
             }
 
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = viewModel::updateSearch,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 placeholder = { Text("Search AIs...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                leadingIcon = { Icon(Icons.Default.Search, null) },
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp)
             )
 
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-            ) {
+            LazyRow(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(AiCategory.entries) { category ->
                     CategoryChip(
                         text = category.displayName,
@@ -137,35 +94,21 @@ fun HomeScreen(
             }
 
             if (recent.isNotEmpty() && selectedCategory == "All" && searchQuery.isBlank()) {
-                Text(
-                    "Recent",
-                    style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(recent) { provider ->
-                        SuggestionChip(
-                            onClick = {
-                                viewModel.markAsUsed(provider.id)
-                                onAiClick(provider)
-                            },
-                            label = { Text(provider.name) }
-                        )
+                Text("Recent", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+                LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(recent, key = { it.id }) { provider ->
+                        SuggestionChip(onClick = { viewModel.markAsUsed(provider.id); onAiClick(provider) }, label = { Text(provider.name) })
                     }
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(Modifier.height(8.dp))
             }
 
-            if (providers.isEmpty() && !isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("No AIs found", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+            if (providers.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        if (isLoading) "Loading AI providers..." else if (searchQuery.isNotBlank()) "No matching AIs" else "No AIs available",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+                    )
                 }
             } else {
                 LazyVerticalGrid(
@@ -178,10 +121,7 @@ fun HomeScreen(
                     items(providers, key = { it.id }) { provider ->
                         AiCard(
                             provider = provider,
-                            onClick = {
-                                viewModel.markAsUsed(provider.id)
-                                onAiClick(provider)
-                            },
+                            onClick = { viewModel.markAsUsed(provider.id); onAiClick(provider) },
                             onFavoriteClick = { viewModel.toggleFavorite(provider) }
                         )
                     }
@@ -196,46 +136,21 @@ fun HomeScreen(
             title = { Text("Add Custom AI") },
             text = {
                 Column {
-                    OutlinedTextField(
-                        value = newName,
-                        onValueChange = { newName = it; viewModel.clearError() },
-                        label = { Text("Name") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = newUrl,
-                        onValueChange = { newUrl = it; viewModel.clearError() },
-                        label = { Text("URL (https://...)") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    error?.let { e ->
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(text = e, color = MaterialTheme.colorScheme.error)
-                    }
+                    OutlinedTextField(value = newName, onValueChange = { newName = it.take(80); viewModel.clearError() }, label = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(value = newUrl, onValueChange = { newUrl = it.take(2048); viewModel.clearError() }, label = { Text("HTTPS URL") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp)) }
                 }
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        if (newName.isNotBlank() && newUrl.isNotBlank()) {
-                            viewModel.addCustomAi(newName.trim(), newUrl)
-                            newName = ""
-                            newUrl = ""
-                            showAddDialog = false
-                        }
-                    }
-                ) {
-                    Text("Add")
-                }
+                TextButton(onClick = {
+                    viewModel.addCustomAi(newName, newUrl)
+                    newName = ""
+                    newUrl = ""
+                    showAddDialog = false
+                }) { Text("Add") }
             },
-            dismissButton = {
-                TextButton(onClick = { showAddDialog = false; viewModel.clearError() }) {
-                    Text("Cancel")
-                }
-            }
+            dismissButton = { TextButton(onClick = { showAddDialog = false; viewModel.clearError() }) { Text("Cancel") } }
         )
     }
 }
