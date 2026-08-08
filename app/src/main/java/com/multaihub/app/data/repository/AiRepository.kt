@@ -57,6 +57,13 @@ class AiRepository(
         throw RepositoryException("Failed to delete provider", cause)
     }
 
+    /** Removes user-created providers without deleting the built-in provider catalog. */
+    suspend fun deleteCustomProviders() = try {
+        aiProviderDao.deleteCustomProviders()
+    } catch (cause: Exception) {
+        throw RepositoryException("Failed to clear custom providers", cause)
+    }
+
     suspend fun updateLastUsed(id: String) = try {
         aiProviderDao.updateLastUsed(id)
     } catch (cause: Exception) {
@@ -101,6 +108,13 @@ class AiRepository(
         throw RepositoryException("Failed to delete prompt", cause)
     }
 
+    /** Removes all saved prompts. */
+    suspend fun deleteAllPrompts() = try {
+        promptDao.deleteAll()
+    } catch (cause: Exception) {
+        throw RepositoryException("Failed to clear prompts", cause)
+    }
+
     fun getAllNotes(): Flow<List<Note>> = noteDao.getAll()
 
     suspend fun addNote(note: Note) = try {
@@ -113,6 +127,13 @@ class AiRepository(
         noteDao.delete(note)
     } catch (cause: Exception) {
         throw RepositoryException("Failed to delete note", cause)
+    }
+
+    /** Removes all saved notes. */
+    suspend fun deleteAllNotes() = try {
+        noteDao.deleteAll()
+    } catch (cause: Exception) {
+        throw RepositoryException("Failed to clear notes", cause)
     }
 
     fun getAllTabs(): Flow<List<Tab>> = tabDao.getAll()
