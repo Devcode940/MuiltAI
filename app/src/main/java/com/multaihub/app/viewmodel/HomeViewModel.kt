@@ -11,14 +11,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-/**
- * Owns provider catalog presentation state and user actions from the home screen.
- */
+/** Owns provider catalog presentation state and user actions from the home screen. */
 class HomeViewModel(private val repository: AiRepository) : ViewModel() {
     private val _selectedCategory = MutableStateFlow("All")
     val selectedCategory: StateFlow<String> = _selectedCategory.asStateFlow()
@@ -32,30 +30,43 @@ class HomeViewModel(private val repository: AiRepository) : ViewModel() {
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    val providers: StateFlow<List<AiProvider>> = combine(
-        repository.getAllVisibleProviders(),
+    /**
+     * Queries SQLite instead of loading and filtering the entire provider catalog in Compose.
+     * // WHY: This keeps work proportional to the query and avoids unnecessary allocations/recompositions.
+     */
+    val providers: StateFlow<List<AiProvider>> = kotlinx.coroutines.flow.combine(
         _selectedCategory,
-        _searchQuery
-    ) { list, category, query ->
-        list.filter { provider ->
-            val matchesCategory = category == "All" ||
-                provider.category.equals(category, ignoreCase = true)
-            val matchesSearch = query.isBlank() ||
-                provider.name.contains(query, ignoreCase = true) ||
-                provider.category.contains(query, ignoreCase = true)
-            matchesCategory && matchesSearch
+        _searchQuery.debounce(150)
+    ) { category, query -> category to query.trim().take(100) }
+        .flatMapLatest { (category, query) ->
+            when {
+                category.equals("Favorites", ignoreCase = true) && query.isBlank() -> repository.getFavorites()
+                category.equals("Favorites", ignoreCase = true) -> repository.searchProviders(query)
+                    .let { flow -> kotlinx.coroutines.flow.combine(flow, repository.getFavorites()) { matches, favorites ->
+                        val ids = favorites.asSequence().map { it.id }.toSet()
+                        matches.filter { it.id in ids }
+                    } }
+                category.equals("All", ignoreCase = true) && query.isBlank() -> repository.getAllVisibleProviders()
+                category.equals("All", ignoreCase = true) -> repository.searchProviders(query)
+                query.isBlank() -> repository.getProvidersByCategory(category)
+                else -> kotlinx.coroutines.flow.combine(
+                    repository.searchProviders(query),
+                    repository.getProvidersByCategory(category)
+                ) { matches, categorized ->
+                    val ids = categorized.asSequence().map { it.id }.toSet()
+                    matches.filter { it.id in ids }
+                }
+            }
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val recentProviders: StateFlow<List<AiProvider>> = repository.getRecent()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /** Changes the selected provider category. */
     fun selectCategory(category: String) {
         _selectedCategory.value = category.trim().ifBlank { "All" }
     }
 
-    /** Updates the provider search query. */
     fun updateSearch(query: String) {
         _searchQuery.value = query.take(100)
     }
@@ -71,23 +82,16 @@ class HomeViewModel(private val repository: AiRepository) : ViewModel() {
     /** Toggles a provider's favorite state. */
     fun toggleFavorite(provider: AiProvider) {
         viewModelScope.launch {
-            runCatching {
-                repository.toggleFavorite(provider.id, !provider.isFavorite)
-            }.onFailure {
-                _error.value = "Could not update favorites. Please try again."
-            }
+            runCatching { repository.toggleFavorite(provider.id, !provider.isFavorite) }
+                .onFailure { _error.value = "Could not update favorites. Please try again." }
         }
     }
 
-    /**
-     * Adds a custom AI provider after validating and normalizing the URL.
-     * // WHY: This is an untrusted input boundary; raw names, URLs, and exception messages must not enter persistence or UI.
-     */
+    /** Adds a custom AI provider after validating and normalizing the URL. */
     fun addCustomAi(name: String, url: String, category: String = "Custom") {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
-
             try {
                 val cleanName = name.trim()
                 val cleanCategory = category.trim().ifBlank { "Custom" }
@@ -103,33 +107,26 @@ class HomeViewModel(private val repository: AiRepository) : ViewModel() {
                     _error.value = "Category names must be 32 characters or fewer."
                     return@launch
                 }
-
-                val validatedUrl = UrlValidator.validateAndEnforceHttps(
-                    url,
-                    enforceHttps = true
-                )
+                val validatedUrl = UrlValidator.validateAndEnforceHttps(url, enforceHttps = true)
                 if (validatedUrl == null) {
                     _error.value = "Enter a valid HTTPS website address."
                     return@launch
                 }
-
-                // WHY: Check only the requested URL instead of collecting the entire provider table.
                 if (repository.getProviderByUrl(validatedUrl) != null) {
                     _error.value = "This AI provider already exists."
                     return@launch
                 }
-
-                val provider = AiProvider(
-                    id = UUID.randomUUID().toString(),
-                    name = cleanName,
-                    url = validatedUrl,
-                    category = cleanCategory,
-                    isCustom = true,
-                    sortOrder = Int.MAX_VALUE
+                repository.addCustomProvider(
+                    AiProvider(
+                        id = UUID.randomUUID().toString(),
+                        name = cleanName,
+                        url = validatedUrl,
+                        category = cleanCategory,
+                        isCustom = true,
+                        sortOrder = Int.MAX_VALUE
+                    )
                 )
-                repository.addCustomProvider(provider)
             } catch (_: Exception) {
-                // WHY: Internal SQLite/Room details are not actionable and may expose implementation information.
                 _error.value = "Could not add the AI provider. Please try again."
             } finally {
                 _isLoading.value = false
@@ -137,7 +134,6 @@ class HomeViewModel(private val repository: AiRepository) : ViewModel() {
         }
     }
 
-    /** Deletes a custom provider; built-in providers are protected. */
     fun deleteCustomAi(provider: AiProvider) {
         if (!provider.isCustom) return
         viewModelScope.launch {
@@ -146,17 +142,12 @@ class HomeViewModel(private val repository: AiRepository) : ViewModel() {
         }
     }
 
-    /** Clears the current user-facing error. */
-    fun clearError() {
-        _error.value = null
-    }
+    fun clearError() { _error.value = null }
 
     class Factory(private val repository: AiRepository) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            if (modelClass.isAssignableFrom(HomeViewModel::class.java)) {
-                return HomeViewModel(repository) as T
-            }
+            if (modelClass.isAssignableFrom(HomeViewModel::class.java)) return HomeViewModel(repository) as T
             throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }
     }
