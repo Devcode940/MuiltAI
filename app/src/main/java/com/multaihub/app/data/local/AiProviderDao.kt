@@ -21,7 +21,7 @@ interface AiProviderDao {
     @Query("SELECT * FROM ai_providers WHERE id = :id")
     suspend fun getById(id: String): AiProvider?
 
-    /** Finds a provider by normalized URL without loading the complete provider table. */
+    /** Finds a provider by normalized URL without loading the complete provider catalog. */
     @Query("SELECT * FROM ai_providers WHERE lower(url) = lower(:url) LIMIT 1")
     suspend fun getByUrl(url: String): AiProvider?
 
@@ -45,6 +45,10 @@ interface AiProviderDao {
 
     @Delete
     suspend fun delete(provider: AiProvider)
+
+    /** Deletes only user-created providers while preserving built-in catalog entries. */
+    @Query("DELETE FROM ai_providers WHERE isCustom = 1")
+    suspend fun deleteCustomProviders()
 
     @Query("UPDATE ai_providers SET lastUsed = :time WHERE id = :id")
     suspend fun updateLastUsed(id: String, time: Long = System.currentTimeMillis())
