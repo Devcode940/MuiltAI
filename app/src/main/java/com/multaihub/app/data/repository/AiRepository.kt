@@ -32,6 +32,13 @@ class AiRepository(
         throw RepositoryException("Failed to load provider", cause)
     }
 
+    /** Looks up a provider by URL without loading the complete provider catalog. */
+    suspend fun getProviderByUrl(url: String): AiProvider? = try {
+        aiProviderDao.getByUrl(url)
+    } catch (cause: Exception) {
+        throw RepositoryException("Failed to check provider URL", cause)
+    }
+
     suspend fun addCustomProvider(provider: AiProvider) = try {
         aiProviderDao.insert(provider)
     } catch (cause: Exception) {
