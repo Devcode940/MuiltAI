@@ -8,6 +8,7 @@ import com.multaihub.app.data.model.AiProvider
 import com.multaihub.app.data.model.Note
 import com.multaihub.app.data.model.Prompt
 import com.multaihub.app.data.model.Tab
+import com.multaihub.app.utils.UrlValidator
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -39,14 +40,23 @@ class AiRepository(
         throw RepositoryException("Failed to check provider URL", cause)
     }
 
+    /**
+     * Adds a custom provider after enforcing the same URL policy used by WebView navigation.
+     * // WHY: Validation at the repository boundary protects against callers that bypass the UI.
+     */
     suspend fun addCustomProvider(provider: AiProvider) = try {
-        aiProviderDao.insert(provider)
+        val safeUrl = UrlValidator.validateAndEnforceHttps(provider.url, enforceHttps = true)
+            ?: throw IllegalArgumentException("Invalid provider URL")
+        aiProviderDao.insert(provider.copy(url = safeUrl, isCustom = true))
     } catch (cause: Exception) {
         throw RepositoryException("Failed to add provider", cause)
     }
 
+    /** Updates a provider only after validating its URL. */
     suspend fun updateProvider(provider: AiProvider) = try {
-        aiProviderDao.update(provider)
+        val safeUrl = UrlValidator.validateAndEnforceHttps(provider.url, enforceHttps = true)
+            ?: throw IllegalArgumentException("Invalid provider URL")
+        aiProviderDao.update(provider.copy(url = safeUrl))
     } catch (cause: Exception) {
         throw RepositoryException("Failed to update provider", cause)
     }
