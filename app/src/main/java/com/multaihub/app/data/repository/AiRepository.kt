@@ -10,14 +10,16 @@ import com.multaihub.app.data.model.Prompt
 import com.multaihub.app.data.model.Tab
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * Single data-access boundary for the application.
+ * // WHY: Persistence failures must reach the presentation layer instead of being silently lost.
+ */
 class AiRepository(
     private val aiProviderDao: AiProviderDao,
     private val promptDao: PromptDao,
     private val noteDao: NoteDao,
     private val tabDao: TabDao
 ) {
-
-    // AI Providers
     fun getAllVisibleProviders(): Flow<List<AiProvider>> = aiProviderDao.getAllVisible()
     fun getAllProviders(): Flow<List<AiProvider>> = aiProviderDao.getAll()
     fun getProvidersByCategory(category: String): Flow<List<AiProvider>> = aiProviderDao.getByCategory(category)
@@ -26,108 +28,130 @@ class AiRepository(
 
     suspend fun getProviderById(id: String): AiProvider? = try {
         aiProviderDao.getById(id)
-    } catch (e: Exception) {
-        null
+    } catch (cause: Exception) {
+        throw RepositoryException("Failed to load provider", cause)
     }
 
     suspend fun addCustomProvider(provider: AiProvider) = try {
         aiProviderDao.insert(provider)
-    } catch (e: Exception) {
-        throw RepositoryException("Failed to add provider", e)
+    } catch (cause: Exception) {
+        throw RepositoryException("Failed to add provider", cause)
     }
 
     suspend fun updateProvider(provider: AiProvider) = try {
         aiProviderDao.update(provider)
-    } catch (e: Exception) {
-        throw RepositoryException("Failed to update provider", e)
+    } catch (cause: Exception) {
+        throw RepositoryException("Failed to update provider", cause)
     }
 
     suspend fun deleteProvider(provider: AiProvider) = try {
         aiProviderDao.delete(provider)
-    } catch (e: Exception) {
-        throw RepositoryException("Failed to delete provider", e)
+    } catch (cause: Exception) {
+        throw RepositoryException("Failed to delete provider", cause)
     }
 
     suspend fun updateLastUsed(id: String) = try {
         aiProviderDao.updateLastUsed(id)
-    } catch (e: Exception) {}
+    } catch (cause: Exception) {
+        throw RepositoryException("Failed to update provider usage", cause)
+    }
 
     suspend fun toggleDesktopMode(id: String, isDesktop: Boolean) = try {
         aiProviderDao.updateDesktopMode(id, isDesktop)
-    } catch (e: Exception) {}
+    } catch (cause: Exception) {
+        throw RepositoryException("Failed to update display mode", cause)
+    }
 
     suspend fun toggleFavorite(id: String, isFavorite: Boolean) = try {
         aiProviderDao.updateFavorite(id, isFavorite)
-    } catch (e: Exception) {}
+    } catch (cause: Exception) {
+        throw RepositoryException("Failed to update favorite state", cause)
+    }
 
     suspend fun setHidden(id: String, isHidden: Boolean) = try {
         aiProviderDao.updateHidden(id, isHidden)
-    } catch (e: Exception) {}
+    } catch (cause: Exception) {
+        throw RepositoryException("Failed to update visibility", cause)
+    }
 
-    // Prompts
     fun getAllPrompts(): Flow<List<Prompt>> = promptDao.getAll()
+
     suspend fun addPrompt(prompt: Prompt) = try {
         promptDao.insert(prompt)
-    } catch (e: Exception) {
-        throw RepositoryException("Failed to add prompt", e)
+    } catch (cause: Exception) {
+        throw RepositoryException("Failed to add prompt", cause)
     }
+
     suspend fun updatePrompt(prompt: Prompt) = try {
         promptDao.update(prompt)
-    } catch (e: Exception) {
-        throw RepositoryException("Failed to update prompt", e)
+    } catch (cause: Exception) {
+        throw RepositoryException("Failed to update prompt", cause)
     }
+
     suspend fun deletePrompt(prompt: Prompt) = try {
         promptDao.delete(prompt)
-    } catch (e: Exception) {
-        throw RepositoryException("Failed to delete prompt", e)
+    } catch (cause: Exception) {
+        throw RepositoryException("Failed to delete prompt", cause)
     }
 
-    // Notes
     fun getAllNotes(): Flow<List<Note>> = noteDao.getAll()
+
     suspend fun addNote(note: Note) = try {
         noteDao.insert(note)
-    } catch (e: Exception) {
-        throw RepositoryException("Failed to add note", e)
+    } catch (cause: Exception) {
+        throw RepositoryException("Failed to add note", cause)
     }
+
     suspend fun deleteNote(note: Note) = try {
         noteDao.delete(note)
-    } catch (e: Exception) {
-        throw RepositoryException("Failed to delete note", e)
+    } catch (cause: Exception) {
+        throw RepositoryException("Failed to delete note", cause)
     }
 
-    // Tabs
     fun getAllTabs(): Flow<List<Tab>> = tabDao.getAll()
+
     suspend fun getTabById(id: Long): Tab? = try {
         tabDao.getById(id)
-    } catch (e: Exception) {
-        null
+    } catch (cause: Exception) {
+        throw RepositoryException("Failed to load tab", cause)
     }
+
     suspend fun addTab(tab: Tab): Long = try {
         tabDao.insert(tab)
-    } catch (e: Exception) {
-        throw RepositoryException("Failed to add tab", e)
+    } catch (cause: Exception) {
+        throw RepositoryException("Failed to add tab", cause)
     }
+
     suspend fun updateTab(tab: Tab) = try {
         tabDao.update(tab)
-    } catch (e: Exception) {
-        throw RepositoryException("Failed to update tab", e)
+    } catch (cause: Exception) {
+        throw RepositoryException("Failed to update tab", cause)
     }
+
     suspend fun deleteTab(tab: Tab) = try {
         tabDao.delete(tab)
-    } catch (e: Exception) {
-        throw RepositoryException("Failed to delete tab", e)
+    } catch (cause: Exception) {
+        throw RepositoryException("Failed to delete tab", cause)
     }
+
     suspend fun deleteAllTabs() = try {
         tabDao.deleteAll()
-    } catch (e: Exception) {
-        throw RepositoryException("Failed to delete all tabs", e)
+    } catch (cause: Exception) {
+        throw RepositoryException("Failed to delete all tabs", cause)
     }
+
     suspend fun updateTabLastAccessed(id: Long) = try {
         tabDao.updateLastAccessed(id)
-    } catch (e: Exception) {}
+    } catch (cause: Exception) {
+        throw RepositoryException("Failed to update tab access time", cause)
+    }
+
     suspend fun updateTabNavigationState(id: Long, canGoBack: Boolean, canGoForward: Boolean) = try {
         tabDao.updateNavigationState(id, canGoBack, canGoForward)
-    } catch (e: Exception) {}
+    } catch (cause: Exception) {
+        throw RepositoryException("Failed to update tab navigation state", cause)
+    }
 }
 
+/** Safe application-level wrapper around persistence failures. */
 class RepositoryException(message: String, cause: Throwable? = null) : Exception(message, cause)
