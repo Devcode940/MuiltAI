@@ -2,15 +2,14 @@ package com.multaihub.app.ui.webview
 
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
-import android.net.Uri
 import android.view.ViewGroup
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -86,11 +85,7 @@ fun AiWebViewScreen(
     }
 
     BackHandler {
-        if (canGoBack) {
-            webView?.goBack()
-        } else {
-            onBack()
-        }
+        if (canGoBack) webView?.goBack() else onBack()
     }
 
     Scaffold(
@@ -230,11 +225,7 @@ fun AiWebViewScreen(
                                 // WHY: Only HTTP(S) navigation stays inside the WebView. This
                                 // blocks javascript:, file:, content:, data:, intent:, and
                                 // arbitrary custom schemes from reaching the renderer.
-                                if (!UrlValidator.isSafeWebNavigation(url)) {
-                                    return true
-                                }
-
-                                return false
+                                return !UrlValidator.isSafeWebNavigation(url)
                             }
                         }
 
@@ -272,7 +263,7 @@ fun AiWebViewScreen(
                         activeProvider.url,
                         enforceHttps = true
                     )
-                    if (desiredUrl != null && view.url != desiredUrl && !view.isLoading) {
+                    if (desiredUrl != null && view.url != desiredUrl && !isLoading) {
                         view.loadUrl(desiredUrl)
                     }
                 },
