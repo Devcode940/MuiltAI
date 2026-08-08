@@ -3,6 +3,7 @@ package com.multaihub.app.data.model
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
+/** Persistent definition of an AI provider. */
 @Entity(tableName = "ai_providers")
 data class AiProvider(
     @PrimaryKey
@@ -19,8 +20,10 @@ data class AiProvider(
     val lastUsed: Long = 0L
 )
 
+/** Provider categories exposed by the home catalog. */
 enum class AiCategory(val displayName: String) {
     ALL("All"),
+    FAVORITES("Favorites"),
     CHAT("Chat"),
     CODING("Coding"),
     WRITING("Writing"),
