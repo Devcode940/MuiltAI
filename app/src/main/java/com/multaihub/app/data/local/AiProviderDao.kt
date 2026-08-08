@@ -12,8 +12,6 @@ import kotlinx.coroutines.flow.Flow
 /** Room queries for AI providers. */
 @Dao
 interface AiProviderDao {
-    fun getAllVisible(): Flow<List<AiProvider>>
-
     @Query("SELECT * FROM ai_providers WHERE isHidden = 0 ORDER BY sortOrder ASC, name ASC")
     fun getAllVisible(): Flow<List<AiProvider>>
 
