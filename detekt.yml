@@ -1,0 +1,31 @@
+build:
+  maxIssues: 0
+
+config:
+  validation: true
+
+complexity:
+  LongMethod:
+    active: true
+    threshold: 60
+  LongParameterList:
+    active: true
+    functionThreshold: 8
+  LargeClass:
+    active: true
+    threshold: 600
+
+style:
+  MagicNumber:
+    active: true
+    ignoreNumbers: '-1,0,1,2,100,200,2048,5000'
+  WildcardImport:
+    active: true
+  UnusedPrivateMember:
+    active: true
+
+exceptions:
+  SwallowedException:
+    active: true
+  TooGenericExceptionCaught:
+    active: true
