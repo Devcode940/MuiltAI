@@ -1,12 +1,17 @@
 package com.multaihub.app
 
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.*
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
@@ -20,8 +25,8 @@ import com.multaihub.app.ui.theme.MultiAIHubTheme
 import com.multaihub.app.ui.webview.AiWebViewScreen
 import com.multaihub.app.viewmodel.HomeViewModel
 import com.multaihub.app.viewmodel.WebViewViewModel
-import kotlinx.coroutines.launch
 
+/** Main Android entry point and navigation host. */
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,8 +38,6 @@ class MainActivity : ComponentActivity() {
             MultiAIHubTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     val navController = rememberNavController()
-                    val scope = rememberCoroutineScope()
-
                     val homeViewModel: HomeViewModel = viewModel(
                         factory = HomeViewModel.Factory(app.repository)
                     )
@@ -42,7 +45,6 @@ class MainActivity : ComponentActivity() {
                         factory = WebViewViewModel.Factory(app.repository)
                     )
 
-                    // Temporary holder for selected provider (simple approach)
                     var selectedProvider by remember { mutableStateOf<AiProvider?>(null) }
 
                     NavHost(
@@ -54,11 +56,12 @@ class MainActivity : ComponentActivity() {
                                 viewModel = homeViewModel,
                                 onAiClick = { provider ->
                                     selectedProvider = provider
-                                    navController.navigate("webview/${provider.id}")
+                                    // WHY: URL-encode the identifier so custom provider IDs cannot
+                                    // corrupt the navigation route with '/', '?', or '#'.
+                                    navController.navigate("webview/${Uri.encode(provider.id)}")
                                 },
                                 onOpenComparison = {
-                                    // Placeholder for comparison screen
-                                    // navController.navigate("comparison")
+                                    // Comparison screen remains intentionally separate from the WebView lifecycle.
                                 }
                             )
                         }
@@ -67,7 +70,8 @@ class MainActivity : ComponentActivity() {
                             route = "webview/{aiId}",
                             arguments = listOf(navArgument("aiId") { type = NavType.StringType })
                         ) { backStackEntry ->
-                            val aiId = backStackEntry.arguments?.getString("aiId") ?: return@composable
+                            val aiId = backStackEntry.arguments?.getString("aiId")
+                                ?: return@composable
                             val provider = selectedProvider
 
                             if (provider != null && provider.id == aiId) {
@@ -75,20 +79,17 @@ class MainActivity : ComponentActivity() {
                                     provider = provider,
                                     viewModel = webViewModel,
                                     onBack = { navController.popBackStack() },
-                                    onOpenComparison = {
-                                        // Future: open comparison
-                                    }
+                                    onOpenComparison = {}
                                 )
                             } else {
-                                // Fallback: load from DB
+                                // WHY: Route arguments are the recovery path after process death;
+                                // the screen does not depend on an in-memory selectedProvider.
                                 LaunchedEffect(aiId) {
-                                    scope.launch {
-                                        val p = app.repository.getProviderById(aiId)
-                                        if (p != null) {
-                                            selectedProvider = p
-                                        } else {
-                                            navController.popBackStack()
-                                        }
+                                    val persistedProvider = app.repository.getProviderById(aiId)
+                                    if (persistedProvider != null) {
+                                        selectedProvider = persistedProvider
+                                    } else {
+                                        navController.popBackStack()
                                     }
                                 }
                             }
