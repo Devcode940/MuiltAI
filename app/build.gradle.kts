@@ -23,7 +23,9 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // WHY: Release builds should remove unreachable code and shrink resources before distribution.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -44,15 +46,19 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+
     kotlinOptions {
         jvmTarget = "17"
     }
+
     buildFeatures {
         compose = true
     }
+
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"
     }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -79,6 +85,23 @@ dependencies {
     implementation("androidx.webkit:webkit:1.11.0")
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    // WHY: Local JVM tests catch validation, state, and repository regressions without an Android device.
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.3")
+    testImplementation("io.mockk:mockk:1.13.12")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+
+    // WHY: Room behavior should also be verified against an in-memory SQLite database on Android.
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.room:room-testing:2.6.1")
+    androidTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+}
+
+tasks.withType<Test>().configureEach {
+    // WHY: JUnit 5 is explicit so Gradle does not silently ignore Jupiter tests.
+    useJUnitPlatform()
 }
