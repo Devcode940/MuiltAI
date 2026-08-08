@@ -1,11 +1,18 @@
 package com.multaihub.app.data.local
 
-import androidx.room.*
+import androidx.room.Dao
+import androidx.room.Delete
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Update
 import com.multaihub.app.data.model.AiProvider
 import kotlinx.coroutines.flow.Flow
 
+/** Room queries for AI providers. */
 @Dao
 interface AiProviderDao {
+    fun getAllVisible(): Flow<List<AiProvider>>
 
     @Query("SELECT * FROM ai_providers WHERE isHidden = 0 ORDER BY sortOrder ASC, name ASC")
     fun getAllVisible(): Flow<List<AiProvider>>
@@ -15,6 +22,10 @@ interface AiProviderDao {
 
     @Query("SELECT * FROM ai_providers WHERE id = :id")
     suspend fun getById(id: String): AiProvider?
+
+    /** Finds a provider by normalized URL without loading the complete provider table. */
+    @Query("SELECT * FROM ai_providers WHERE lower(url) = lower(:url) LIMIT 1")
+    suspend fun getByUrl(url: String): AiProvider?
 
     @Query("SELECT * FROM ai_providers WHERE category = :category AND isHidden = 0 ORDER BY sortOrder ASC")
     fun getByCategory(category: String): Flow<List<AiProvider>>
