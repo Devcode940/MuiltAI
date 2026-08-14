@@ -1,4 +1,4 @@
-name: Android CI
+name: Android Java CI
 
 on:
   push:
@@ -11,60 +11,49 @@ permissions:
   contents: read
 
 concurrency:
-  group: android-${{ github.workflow }}-${{ github.ref }}
+  group: android-java-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   verify:
-    name: Test, lint and build
+    name: Java test and build
     runs-on: ubuntu-latest
     timeout-minutes: 30
-
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
-
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
-
-      - name: Run unit tests
-        run: ./gradlew --no-daemon --stacktrace testDebugUnitTest
-
-      - name: Run Android lint
-        run: ./gradlew --no-daemon --stacktrace lintDebug
-
-      - name: Build debug APK
-        run: ./gradlew --no-daemon --stacktrace assembleDebug
-
-      - name: Build release APK
-        run: ./gradlew --no-daemon --stacktrace assembleRelease
-
-      - name: Build release bundle
-        run: ./gradlew --no-daemon --stacktrace bundleRelease
-
+      - name: Unit tests
+        run: ./gradlew --no-daemon --stacktrace :appJava:testDebugUnitTest
+      - name: Lint
+        run: ./gradlew --no-daemon --stacktrace :appJava:lintDebug
+      - name: Debug APK
+        run: ./gradlew --no-daemon --stacktrace :appJava:assembleDebug
+      - name: Release APK
+        run: ./gradlew --no-daemon --stacktrace :appJava:assembleRelease
+      - name: Release AAB
+        run: ./gradlew --no-daemon --stacktrace :appJava:bundleRelease
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: multai-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          name: multai-java-debug-apk
+          path: appJava/build/outputs/apk/debug/*.apk
           if-no-files-found: error
-
       - name: Upload release APK
         uses: actions/upload-artifact@v4
         with:
-          name: multai-release-apk
-          path: app/build/outputs/apk/release/*.apk
+          name: multai-java-release-apk
+          path: appJava/build/outputs/apk/release/*.apk
           if-no-files-found: error
-
       - name: Upload release AAB
         uses: actions/upload-artifact@v4
         with:
-          name: multai-release-aab
-          path: app/build/outputs/bundle/release/*.aab
+          name: multai-java-release-aab
+          path: appJava/build/outputs/bundle/release/*.aab
           if-no-files-found: error
