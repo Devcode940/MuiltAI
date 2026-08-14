@@ -7,6 +7,7 @@ import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
+import android.webkit.SslErrorHandler;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
@@ -63,7 +64,7 @@ public final class MainActivity extends AppCompatActivity {
     private void showHome() {
         webView = null;
         root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(24,24,24,24); root.setBackgroundColor(Color.rgb(15,17,22));
-        TextView title = text("MuiltAI", 28); root.addView(title);
+        TextView title = text("MultiAI", 28); root.addView(title);
         TextView subtitle = text("One Java app for your AI tools", 14); subtitle.setTextColor(Color.LTGRAY); root.addView(subtitle);
         search = new EditText(this); search.setHint("Search AI providers..."); search.setSingleLine(true); root.addView(search);
         Spinner spinner = new Spinner(this); String[] cats={"All","Favorites","Chat","Coding","Writing","Image","Search","Free"};
@@ -91,7 +92,15 @@ public final class MainActivity extends AppCompatActivity {
         LinearLayout bar=new LinearLayout(this); Button back=new Button(this); back.setText("‹ Back"); back.setOnClickListener(v->showHome());
         Button fav=new Button(this); fav.setText(isFavorite(provider.id)?"★":"☆"); fav.setOnClickListener(v->{boolean value=!isFavorite(provider.id);prefs.edit().putBoolean("favorite_"+provider.id,value).apply();fav.setText(value?"★":"☆");});
         TextView name=text(provider.name,18);name.setTextColor(Color.DKGRAY);bar.addView(back);bar.addView(name,new LinearLayout.LayoutParams(0,-2,1));bar.addView(fav);page.addView(bar);
-        webView=new WebView(this); webView.setWebViewClient(new WebViewClient(){@Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest request){Uri uri=request.getUrl();return uri==null||!"https".equalsIgnoreCase(uri.getScheme());}});
+        webView=new WebView(this); webView.setWebViewClient(new WebViewClient(){
+            @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest request){
+                Uri uri=request.getUrl();
+                return uri==null||!"https".equalsIgnoreCase(uri.getScheme());
+            }
+            @Override public void onReceivedSslError(WebView view, SslErrorHandler handler, android.net.http.SslError error){
+                handler.cancel();
+            }
+        });
         WebSettings s=webView.getSettings();s.setJavaScriptEnabled(true);s.setDomStorageEnabled(true);s.setSupportZoom(true);s.setBuiltInZoomControls(false);s.setAllowFileAccess(false);s.setAllowContentAccess(false);webView.setWebChromeClient(new WebChromeClient());webView.loadUrl(provider.url);
         page.addView(webView,new LinearLayout.LayoutParams(-1,0,1));setContentView(page);
     }
