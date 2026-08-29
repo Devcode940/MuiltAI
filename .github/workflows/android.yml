@@ -43,19 +43,19 @@ jobs:
       - name: Release AAB
         run: ./gradlew --no-daemon --stacktrace :app:bundleRelease
       - name: Upload debug APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: multai-kotlin-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
       - name: Upload release APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: multai-kotlin-release-apk
           path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
       - name: Upload release AAB
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: multai-kotlin-release-aab
           path: app/build/outputs/bundle/release/*.aab
@@ -91,19 +91,19 @@ jobs:
       - name: Release AAB
         run: ./gradlew --no-daemon --stacktrace :appJava:bundleRelease
       - name: Upload debug APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: multai-java-debug-apk
           path: appJava/build/outputs/apk/debug/*.apk
           if-no-files-found: error
       - name: Upload release APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: multai-java-release-apk
           path: appJava/build/outputs/apk/release/*.apk
           if-no-files-found: error
       - name: Upload release AAB
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: multai-java-release-aab
           path: appJava/build/outputs/bundle/release/*.aab
