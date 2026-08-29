@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace = "com.multaihub.app"
+    namespace = "com.multaihub.appjava"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.multaihub.app"
+        applicationId = "com.multaihub.appjava"
         minSdk = 26
         targetSdk = 35
         versionCode = 3

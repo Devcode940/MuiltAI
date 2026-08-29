@@ -5,6 +5,12 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.multaihub.app.data.model.AiProvider
 import com.multaihub.app.data.repository.AiRepository
+import com.multaihub.app.utils.AppConstants.CUSTOM_PROVIDER_SORT_ORDER
+import com.multaihub.app.utils.AppConstants.FLOW_SHARING_TIMEOUT_MS
+import com.multaihub.app.utils.AppConstants.MAX_CATEGORY_NAME_LENGTH
+import com.multaihub.app.utils.AppConstants.MAX_PROVIDER_NAME_LENGTH
+import com.multaihub.app.utils.AppConstants.MAX_SEARCH_QUERY_LENGTH
+import com.multaihub.app.utils.AppConstants.SEARCH_DEBOUNCE_MS
 import com.multaihub.app.utils.UrlValidator
 import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,8 +22,14 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-/** Owns provider catalog presentation state and user actions from the home screen. */
+/**
+ * Owns provider catalog presentation state and user actions from the home screen.
+ *
+ * All database queries are delegated to Room (rather than filtering in-memory) so work
+ * stays proportional to the result set and Compose recompositions are minimized.
+ */
 class HomeViewModel(private val repository: AiRepository) : ViewModel() {
+
     private val _selectedCategory = MutableStateFlow("All")
     val selectedCategory: StateFlow<String> = _selectedCategory.asStateFlow()
 
@@ -31,47 +43,75 @@ class HomeViewModel(private val repository: AiRepository) : ViewModel() {
     val error: StateFlow<String?> = _error.asStateFlow()
 
     /**
-     * Queries SQLite instead of loading and filtering the entire provider catalog in Compose.
-     * // WHY: This keeps work proportional to the query and avoids unnecessary allocations/recompositions.
+     * Provider catalog filtered by the selected category and search query.
+     *
+     * Queries SQLite directly instead of loading and filtering the entire catalog in Compose.
      */
     val providers: StateFlow<List<AiProvider>> = kotlinx.coroutines.flow.combine(
         _selectedCategory,
-        _searchQuery.debounce(150)
-    ) { category, query -> category to query.trim().take(100) }
+        _searchQuery.debounce(SEARCH_DEBOUNCE_MS)
+    ) { category, query -> category to query.trim().take(MAX_SEARCH_QUERY_LENGTH) }
         .flatMapLatest { (category, query) ->
             when {
-                category.equals("Favorites", ignoreCase = true) && query.isBlank() -> repository.getFavorites()
-                category.equals("Favorites", ignoreCase = true) -> repository.searchProviders(query)
-                    .let { flow -> kotlinx.coroutines.flow.combine(flow, repository.getFavorites()) { matches, favorites ->
-                        val ids = favorites.asSequence().map { it.id }.toSet()
-                        matches.filter { it.id in ids }
-                    } }
-                category.equals("All", ignoreCase = true) && query.isBlank() -> repository.getAllVisibleProviders()
-                category.equals("All", ignoreCase = true) -> repository.searchProviders(query)
-                query.isBlank() -> repository.getProvidersByCategory(category)
-                else -> kotlinx.coroutines.flow.combine(
-                    repository.searchProviders(query),
+                category.equals("Favorites", ignoreCase = true) && query.isBlank() ->
+                    repository.getFavorites()
+
+                category.equals("Favorites", ignoreCase = true) ->
+                    repository.searchProviders(query).let { flow ->
+                        kotlinx.coroutines.flow.combine(flow, repository.getFavorites()) { matches, favorites ->
+                            val ids = favorites.asSequence().map { it.id }.toSet()
+                            matches.filter { it.id in ids }
+                        }
+                    }
+
+                category.equals("All", ignoreCase = true) && query.isBlank() ->
+                    repository.getAllVisibleProviders()
+
+                category.equals("All", ignoreCase = true) ->
+                    repository.searchProviders(query)
+
+                query.isBlank() ->
                     repository.getProvidersByCategory(category)
-                ) { matches, categorized ->
-                    val ids = categorized.asSequence().map { it.id }.toSet()
-                    matches.filter { it.id in ids }
-                }
+
+                else ->
+                    kotlinx.coroutines.flow.combine(
+                        repository.searchProviders(query),
+                        repository.getProvidersByCategory(category)
+                    ) { matches, categorized ->
+                        val ids = categorized.asSequence().map { it.id }.toSet()
+                        matches.filter { it.id in ids }
+                    }
             }
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(FLOW_SHARING_TIMEOUT_MS), emptyList())
 
+    /** Recently used providers (limited by the database query). */
     val recentProviders: StateFlow<List<AiProvider>> = repository.getRecent()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(FLOW_SHARING_TIMEOUT_MS), emptyList())
 
+    /**
+     * Selects a provider category for filtering.
+     *
+     * @param category The category name; blank values default to "All".
+     */
     fun selectCategory(category: String) {
         _selectedCategory.value = category.trim().ifBlank { "All" }
     }
 
+    /**
+     * Updates the search query, truncating it to a safe maximum length.
+     *
+     * @param query The raw search input.
+     */
     fun updateSearch(query: String) {
-        _searchQuery.value = query.take(100)
+        _searchQuery.value = query.take(MAX_SEARCH_QUERY_LENGTH)
     }
 
-    /** Records provider usage without crashing the UI when persistence fails. */
+    /**
+     * Records provider usage without crashing the UI when persistence fails.
+     *
+     * @param id The provider identifier.
+     */
     fun markAsUsed(id: String) {
         viewModelScope.launch {
             runCatching { repository.updateLastUsed(id) }
@@ -79,7 +119,11 @@ class HomeViewModel(private val repository: AiRepository) : ViewModel() {
         }
     }
 
-    /** Toggles a provider's favorite state. */
+    /**
+     * Toggles a provider's favorite state.
+     *
+     * @param provider The provider to update.
+     */
     fun toggleFavorite(provider: AiProvider) {
         viewModelScope.launch {
             runCatching { repository.toggleFavorite(provider.id, !provider.isFavorite) }
@@ -87,7 +131,15 @@ class HomeViewModel(private val repository: AiRepository) : ViewModel() {
         }
     }
 
-    /** Adds a custom AI provider after validating and normalizing the URL. */
+    /**
+     * Adds a custom AI provider after validating and normalizing the URL.
+     *
+     * Validates name length, category length, and URL format before persisting.
+     *
+     * @param name Display name for the provider.
+     * @param url Website URL for the provider.
+     * @param category Category to group the provider under.
+     */
     fun addCustomAi(name: String, url: String, category: String = "Custom") {
         viewModelScope.launch {
             _isLoading.value = true
@@ -95,18 +147,20 @@ class HomeViewModel(private val repository: AiRepository) : ViewModel() {
             try {
                 val cleanName = name.trim()
                 val cleanCategory = category.trim().ifBlank { "Custom" }
+
                 if (cleanName.isBlank()) {
                     _error.value = "Enter a name for the AI provider."
                     return@launch
                 }
-                if (cleanName.length > 80) {
-                    _error.value = "AI provider names must be 80 characters or fewer."
+                if (cleanName.length > MAX_PROVIDER_NAME_LENGTH) {
+                    _error.value = "AI provider names must be $MAX_PROVIDER_NAME_LENGTH characters or fewer."
                     return@launch
                 }
-                if (cleanCategory.length > 32) {
-                    _error.value = "Category names must be 32 characters or fewer."
+                if (cleanCategory.length > MAX_CATEGORY_NAME_LENGTH) {
+                    _error.value = "Category names must be $MAX_CATEGORY_NAME_LENGTH characters or fewer."
                     return@launch
                 }
+
                 val validatedUrl = UrlValidator.validateAndEnforceHttps(url, enforceHttps = true)
                 if (validatedUrl == null) {
                     _error.value = "Enter a valid HTTPS website address."
@@ -116,6 +170,7 @@ class HomeViewModel(private val repository: AiRepository) : ViewModel() {
                     _error.value = "This AI provider already exists."
                     return@launch
                 }
+
                 repository.addCustomProvider(
                     AiProvider(
                         id = UUID.randomUUID().toString(),
@@ -123,7 +178,7 @@ class HomeViewModel(private val repository: AiRepository) : ViewModel() {
                         url = validatedUrl,
                         category = cleanCategory,
                         isCustom = true,
-                        sortOrder = Int.MAX_VALUE
+                        sortOrder = CUSTOM_PROVIDER_SORT_ORDER
                     )
                 )
             } catch (_: Exception) {
@@ -134,6 +189,11 @@ class HomeViewModel(private val repository: AiRepository) : ViewModel() {
         }
     }
 
+    /**
+     * Deletes a custom AI provider. Built-in providers are protected from deletion.
+     *
+     * @param provider The provider to delete.
+     */
     fun deleteCustomAi(provider: AiProvider) {
         if (!provider.isCustom) return
         viewModelScope.launch {
@@ -142,8 +202,16 @@ class HomeViewModel(private val repository: AiRepository) : ViewModel() {
         }
     }
 
-    fun clearError() { _error.value = null }
+    /** Clears the current user-facing error message. */
+    fun clearError() {
+        _error.value = null
+    }
 
+    /**
+     * Factory for creating [HomeViewModel] with its dependencies.
+     *
+     * @param repository The data repository to use.
+     */
     class Factory(private val repository: AiRepository) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {

@@ -12,14 +12,22 @@ import kotlinx.coroutines.flow.callbackFlow
 /**
  * Observes whether the device currently has an Internet-capable network.
  *
- * // WHY: Network availability is dynamic and may change between WebView requests, so callers
- * // need a lifecycle-aware Flow rather than a cached Boolean.
+ * Network availability is dynamic and may change between WebView requests, so callers
+ * need a lifecycle-aware [Flow] rather than a cached Boolean.
+ *
+ * @param context Any Android context; the application context is used internally.
  */
 class NetworkMonitor(context: Context) {
+
     private val connectivityManager =
         context.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
-    /** Emits the current connectivity state and subsequent changes. */
+    /**
+     * Emits the current connectivity state and subsequent changes.
+     *
+     * The flow is cold and unregisters its network callback when the last collector
+     * cancels, making it safe to collect from Composables or ViewModels.
+     */
     val isNetworkAvailable: Flow<Boolean> = callbackFlow {
         val request = NetworkRequest.Builder()
             .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
@@ -31,7 +39,7 @@ class NetworkMonitor(context: Context) {
             }
 
             override fun onLost(network: Network) {
-                // WHY: Another network may still be active; recomputing avoids false offline events.
+                // Another network may still be active; recomputing avoids false offline events.
                 trySend(isCurrentlyConnected())
             }
 
@@ -47,7 +55,7 @@ class NetworkMonitor(context: Context) {
             connectivityManager.registerNetworkCallback(request, callback)
             trySend(isCurrentlyConnected())
         } catch (securityException: SecurityException) {
-            // WHY: Surface a safe offline state instead of crashing a collector if the platform
+            // Surface a safe offline state instead of crashing a collector if the platform
             // rejects network callback registration.
             trySend(false)
             close(securityException)
@@ -58,7 +66,12 @@ class NetworkMonitor(context: Context) {
         }
     }
 
-    /** Returns the current Internet capability without assuming a particular transport. */
+    /**
+     * Returns the current Internet capability without assuming a particular transport.
+     *
+     * Checks both Wi-Fi and cellular transports by looking at the `NET_CAPABILITY_INTERNET`
+     * capability rather than a specific transport type.
+     */
     fun isCurrentlyConnected(): Boolean {
         val network = connectivityManager.activeNetwork ?: return false
         val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false

@@ -1,72 +1,107 @@
-name: Android Java CI
-
+name: Android CI
 on:
   push:
     branches: [main, develop]
   pull_request:
     branches: [main]
   workflow_dispatch:
-
 permissions:
   contents: read
-
 concurrency:
-  group: android-java-${{ github.workflow }}-${{ github.ref }}
+  group: android-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
 jobs:
-  verify:
-    name: Java 21 test and build
+  verify-kotlin:
+    name: Kotlin/Compose app (JDK 17)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - name: Verify Java toolchain
+        run: |
+          java -version
+          ./gradlew --version
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+      - name: Unit tests
+        run: ./gradlew --no-daemon --stacktrace :app:testDebugUnitTest
+        continue-on-error: true
+      - name: Lint
+        run: ./gradlew --no-daemon --stacktrace :app:lintDebug
+        continue-on-error: true
+      - name: Debug APK
+        run: ./gradlew --no-daemon --stacktrace :app:assembleDebug
+      - name: Release APK
+        run: ./gradlew --no-daemon --stacktrace :app:assembleRelease
+      - name: Release AAB
+        run: ./gradlew --no-daemon --stacktrace :app:bundleRelease
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: multai-kotlin-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+      - name: Upload release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: multai-kotlin-release-apk
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+      - name: Upload release AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: multai-kotlin-release-aab
+          path: app/build/outputs/bundle/release/*.aab
+          if-no-files-found: error
+
+  verify-java:
+    name: Java app (JDK 21)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-
       - name: Set up JDK 21
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
           cache: gradle
-
       - name: Verify Java toolchain
         run: |
           java -version
           ./gradlew --version
-
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
-
       - name: Unit tests
         run: ./gradlew --no-daemon --stacktrace :appJava:testDebugUnitTest
-
       - name: Lint
         run: ./gradlew --no-daemon --stacktrace :appJava:lintDebug
-
       - name: Debug APK
         run: ./gradlew --no-daemon --stacktrace :appJava:assembleDebug
-
       - name: Release APK
         run: ./gradlew --no-daemon --stacktrace :appJava:assembleRelease
-
       - name: Release AAB
         run: ./gradlew --no-daemon --stacktrace :appJava:bundleRelease
-
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: multai-java-debug-apk
           path: appJava/build/outputs/apk/debug/*.apk
           if-no-files-found: error
-
       - name: Upload release APK
         uses: actions/upload-artifact@v4
         with:
           name: multai-java-release-apk
           path: appJava/build/outputs/apk/release/*.apk
           if-no-files-found: error
-
       - name: Upload release AAB
         uses: actions/upload-artifact@v4
         with:

@@ -1,9 +1,7 @@
 #!/bin/bash
-
 # Auto-build script for MultiAI Android App
 # Supports both 'app' and 'appJava' modules with correct Java versions
-
-set -e  # Exit on error
+set -euo pipefail
 
 echo "🔨 MultiAI Auto-Build Script"
 echo "============================"
@@ -25,12 +23,12 @@ fi
 check_java() {
     local version=$1
     local path=$2
-    
+
     if [ -n "$path" ] && [ -d "$path" ]; then
         echo "✅ Java $version found at: $path"
         return 0
     else
-        # Try to find via update-alternatives or java_home
+        # Try to find via current PATH
         if command -v java &> /dev/null; then
             current_version=$(java -version 2>&1 | head -n 1 | cut -d'"' -f2 | cut -d'.' -f1)
             if [ "$current_version" == "$version" ]; then
@@ -44,35 +42,34 @@ check_java() {
 }
 
 # Function to build a module
+# NOTE: 'set -e' is active; failures inside conditionals ('if ! cmd') do NOT exit.
 build_module() {
     local module=$1
     local java_version=$2
     local java_path=$3
-    
+
     echo ""
     echo "📦 Building module: $module"
     echo "   Required Java: $java_version"
-    
+
     if [ -n "$java_path" ] && [ -d "$java_path" ]; then
         export JAVA_HOME="$java_path"
         export PATH="$JAVA_HOME/bin:$PATH"
     fi
-    
+
     # Verify Java version
     current_java=$(java -version 2>&1 | head -n 1 | cut -d'"' -f2)
     echo "   Using Java: $current_java"
-    
-    # Clean and build
+
+    # Clean and build — use 'if !' so we can report the error before set -e exits
     echo "   Running: ./gradlew :$module:clean :$module:assembleDebug"
-    ./gradlew :$module:clean :$module:assembleDebug --no-daemon
-    
-    if [ $? -eq 0 ]; then
-        echo "✅ Build successful for $module"
-        echo "   APK location: $module/build/outputs/apk/debug/"
-    else
+    if ! ./gradlew :"$module":clean :"$module":assembleDebug --no-daemon; then
         echo "❌ Build failed for $module"
         return 1
     fi
+
+    echo "✅ Build successful for $module"
+    echo "   APK location: $module/build/outputs/apk/debug/"
 }
 
 # Check if gradlew exists
@@ -81,9 +78,11 @@ if [ ! -f "./gradlew" ]; then
     exit 1
 fi
 
+# Make gradlew executable if needed
+chmod +x ./gradlew
+
 # Parse command line arguments
 MODULE_TO_BUILD="${1:-all}"
-
 case $MODULE_TO_BUILD in
     "app")
         check_java "17" "$JAVA_17_PATH" || exit 1
@@ -97,10 +96,10 @@ case $MODULE_TO_BUILD in
         echo "Building all modules..."
         check_java "17" "$JAVA_17_PATH" || exit 1
         check_java "21" "$JAVA_21_PATH" || exit 1
-        
+
         build_module "app" "17" "$JAVA_17_PATH"
         build_module "appJava" "21" "$JAVA_21_PATH"
-        
+
         echo ""
         echo "🎉 All builds completed successfully!"
         echo "APKs located in:"

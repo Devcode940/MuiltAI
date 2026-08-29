@@ -1,10 +1,11 @@
-package com.multaihub.app;
+package com.multaihub.appjava;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.webkit.SslErrorHandler;
@@ -101,7 +102,24 @@ public final class MainActivity extends AppCompatActivity {
                 handler.cancel();
             }
         });
-        WebSettings s=webView.getSettings();s.setJavaScriptEnabled(true);s.setDomStorageEnabled(true);s.setSupportZoom(true);s.setBuiltInZoomControls(false);s.setAllowFileAccess(false);s.setAllowContentAccess(false);webView.setWebChromeClient(new WebChromeClient());webView.loadUrl(provider.url);
+        WebSettings s=webView.getSettings();
+        s.setJavaScriptEnabled(true);
+        s.setDomStorageEnabled(true);
+        s.setSupportZoom(true);
+        s.setBuiltInZoomControls(false);
+        s.setDisplayZoomControls(false);
+        s.setAllowFileAccess(false);
+        s.setAllowContentAccess(false);
+        s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+        s.setMediaPlaybackRequiresUserGesture(true);
+        s.setSupportMultipleWindows(false);
+        s.setJavaScriptCanOpenWindowsAutomatically(false);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            s.setSafeBrowsingEnabled(true);
+        }
+        s.setSaveFormData(false);
+        webView.setWebChromeClient(new WebChromeClient());
+        webView.loadUrl(provider.url);
         page.addView(webView,new LinearLayout.LayoutParams(-1,0,1));setContentView(page);
     }
 
